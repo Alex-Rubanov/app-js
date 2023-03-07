@@ -1,0 +1,29 @@
+<!DOCTYPE html>                 <!-- To jest plik HTML5. -->
+<html>                          <!-- Główny element. -->
+<head>                          <!-- Tu umieszcza się tytuł strony, skrypty i style. -->
+<title>Cyfrowy zegar</title>
+<style>                         /* Arkusz stylów CSS dla zegara. */
+#clock {                        /* Style dotyczą elementu o identyfikatorze id="clock". */
+ font: bold 24px sans-serif;    /* Duża, pogrubiona czcionka... */
+ background: #ddf;              /* ...na jasnoszarym tle. */
+ padding: 15px;                 /* Tekst ma marginesy... */
+ border: solid black 2px;       /* ...i jest umieszczony w ramce... */
+ border-radius: 10px;           /* ...z zaokrąglonymi rogami. */
+}
+</style>
+</head>
+<body>                    <!-- Ten znacznik zawiera treść dokumentu. -->
+<h1>Cyfrowy zegar</h1>    <!-- Wyświetlenie tytułu. -->
+<span id="clock"></span>  <!-- W tym elemencie będzie umieszczany bieżący czas. -->
+<script>
+// Definicja funkcji wyświetlającej bieżący czas.
+function displayTime() {
+  let clock = document.querySelector("#clock");   // Uzyskanie referencji do elementu id="clock".
+  let now = new Date();                           // Odczytanie bieżącego czasu.
+  clock.textContent = now.toLocaleTimeString();   // Wyświetlenie czasu.
+}
+displayTime()                    // Wyświetlenie czasu,
+setInterval(displayTime, 1000);  // a następnie aktualizowanie go co sekundę.
+</script>
+</body>
+</html>

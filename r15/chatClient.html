@@ -1,0 +1,33 @@
+<html>
+<head><title>Klient czatu</title></head>
+<body>
+<!-- Interfejsem graficznym czatu jest po prostu pole tekstowe. -->
+<!-- Nowe komunikaty będą umieszczane przed tym polem. -->
+<input id="input" style="width:100%; padding:10px; border:solid black 2px"/>
+<script>
+// Zdefiniowanie kilku szczegółów interfejsu graficznego.
+let nick = prompt("Podaj swój nick");     // Uzyskanie nicku użytkownika.
+let input = document.getElementById("input"); // Wyszukanie pola tekstowego.
+input.focus();                                // Ustalenie fokusu.
+
+// Rejestracja przy użyciu obiektu EventSource procedury powiadamiającej o nowych komunikatach.
+let chat = new EventSource("/chat");
+chat.addEventListener("chat", event => {  // Gdy nadejdzie komunikat...
+  let div = document.createElement("div");    // ...tworzymy znacznik <div>, ...
+  div.append(event.data);                     // ...umieszczamy w nim tekst komunikatu...
+  input.before(div);                          // ...i znacznik <div> przed polem.
+  input.scrollIntoView();                     // Przewinięcie strony, aby pole było widoczne.
+});
+
+// Wysłanie komunikatu do serwera za pomocą funkcji fetch().
+input.addEventListener("change", ()=>{  // Gdy użytkownik naciśnie klawisz Enter...
+  fetch("/chat", {                      // ...zaczynamy wysyłać zapytanie HTTP na zadany adres URL.
+    method: "POST",                     // Jest to zapytanie POST zawierające...
+    body: nick + ": " + input.value     // ...nick użytkownika i komunikat.
+  })
+  .catch(e => console.error);           // Odpowiedzi pomijamy, ale rejestrujemy błędy.
+  input.value = "";                     // Usuwamy zawartość pola.
+});
+</script>
+</body>
+</html>

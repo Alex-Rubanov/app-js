@@ -1,0 +1,186 @@
+<html><head><title>Zgadnij liczbę, którą mam na myśli...</title>
+<style>
+body { height: 250px; display: flex; flex-direction: column;
+    align-items: center; justify-content: space-evenly; }
+#heading { font: bold 36px sans-serif; margin: 0; }
+#container { border: solid black 1px; height: 1em; width: 80%; }
+#range { background-color: green; margin-left: 0%; height: 1em; width: 100%; }
+#input { display: block; font-size: 24px; width: 60%; padding: 5px; }
+#playagain { font-size: 24px; padding: 10px; border-radius: 5px; }
+</style>
+</head>
+<body>
+<h1 id="heading">Zgadnij liczbę, którą mam na myśli...</h1>
+<!-- Wizualne przedstawienie liczb, które nie zostały wykluczone. -->
+<div id="container"><div id="range"></div></div>
+<!-- Pole, w którym użytkownik wpisuje odgadywane liczby. -->
+<input id="input" type="text">
+<!-- Przycisk rozpoczynający nową grę. Ukryty, dopóki trwa gra. -->
+<button id="playagain" hidden onclick="location.search='';">Nowa gra</button>
+<script>
+/**
+* Instancja poniższej klasy GameState reprezentuje wewnętrzny stan gry
+* w zgadywanie liczb. Klasa definiuje statyczną metodę fabryczną inicjującą
+* stan na podstawie różnych źródeł, metodę do aktualizowania stanu po
+* wpisaniu liczby przez użytkownika oraz metodę do modyfikowania
+* dokumentu w zależności od bieżącego stanu.
+*/
+class GameState {
+  // Metoda fabryczna tworząca nowy obiekt stanu.
+  static newGame() {
+    let s = new GameState();
+    s.secret = s.randomInt(0, 100);      // Liczba całkowita 0 < n < 100.
+    s.low = 0;                           // Odgadywana liczba musi być większa niż ta.
+    s.high = 100;                        // Odgadywana liczba musi być mniejsza niż ta.
+    s.numGuesses = 0;                    // Liczba prób odgadnięcia.
+    s.guess = null;                      // Ostatnio podana liczba.
+    return s;
+  }
+
+  // Obiekt zapisany za pomocą metody history.pushState() jest zwykłym
+  // obiektem, a nie instancją klasy GameState. Dlatego poniższa metoda
+  // fabryczna odtwarza obiekt GameState na podstawie obiektu skojarzonego
+  // ze zdarzeniem "popstate".
+  static fromStateObject(stateObject) {
+    let s = new GameState();
+    for(let key of Object.keys(stateObject)) {
+      s[key] = stateObject[key];
+    }
+    return s;
+  }
+
+  // Aby użytkownik mógł tworzyć zakładki, trzeba stan gry kodować w adresie
+  // URL. Można to łatwo osiągnąć za pomocą klasy URLSearchParams.
+  toURL() {
+    let url = new URL(window.location);
+    url.searchParams.set("l", this.low);
+    url.searchParams.set("h", this.high);
+    url.searchParams.set("n", this.numGuesses);
+    url.searchParams.set("g", this.guess);
+    // Zwróć uwagę, że nie można zakodować w adresie URL tajnej
+    // liczby. Jeżeli użytkownik utworzy zakładkę i użyje jej za jakiś
+    // czas, trzeba będzie ponownie wybrać losową liczbę z zadanego
+    // przedziału.
+    return url.href;
+  }
+
+  // Metoda fabryczna tworząca obiekt GameState i inicjująca go za
+  // pomocą zadanego adresu URL. Jeżeli adres ten nie zawiera oczekiwanych
+  // parametrów, lub są one błędne, funkcja zwraca wartość null.
+  static fromURL(url) {
+    let s = new GameState();
+    let params = new URL(url).searchParams;
+    s.low = parseInt(params.get("l"));
+    s.high = parseInt(params.get("h"));
+    s.numGuesses = parseInt(params.get("n"));
+    s.guess = parseInt(params.get("g"));
+
+    // Jeżeli adres URL nie zawiera wszystkich potrzebnych parametrów
+    // lub nie są one liczbami całkowitymi, funkcja zwraca wartość null.
+    if (isNaN(s.low) || isNaN(s.high) ||
+      isNaN(s.numGuesses) || isNaN(s.guess)) {
+      return null;
+    }
+
+    // Za każdym razem, gdy gra jest wznawiana za pomocą adresu
+    // URL, wybierana jest nowa tajna liczba z odpowiedniego przedziału.
+    s.secret = s.randomInt(s.low, s.high);
+    return s;
+  }
+
+  // Metoda zwracająca liczbę całkowitą z przedziału od min do max.
+  randomInt(min, max) {
+    return min + Math.ceil(Math.random() * (max - min - 1));
+  }
+
+  // Metoda modyfikująca dokument odpowiednio do bieżącego stanu gry.
+  render() {
+    let heading = document.querySelector("#heading");     // Znacznik <h1> na początku dokumentu.
+    let range = document.querySelector("#range");         // Znacznik prezentujący przedział liczb.
+    let input = document.querySelector("#input");         // Pole do wpisywania liczb.
+    let playagain = document.querySelector("#playagain");
+
+    // Zmiana tytułu i nagłówka dokumentu.
+    heading.textContent = document.title =
+      `Mam na myśli liczbę z przedziału od ${this.low} do ${this.high}.`;
+
+    // Zmiana wizualizacji przedziału liczb.
+    range.style.marginLeft = `${this.low}%`;
+    range.style.width = `${(this.high-this.low)}%`;
+
+    // Wyczyszczenie pola i ustawienie fokusu.
+    input.value = "";
+    input.focus();
+
+    // Wyświetlenie odpowiedzi na liczbę wpisaną przez użytkownika.
+    // Podpowiedź będzie widoczna, ponieważ pole zostało wcześniej wyczyszczone.
+    if (this.guess === null) {
+      input.placeholder = "Wpisz liczbę i naciśnij Enter";
+    } else if (this.guess < this.secret) {
+      input.placeholder = `Liczba ${this.guess} jest za mała. Spróbuj jeszcze raz.`;
+    } else if (this.guess > this.secret) {
+      input.placeholder = `Liczba ${this.guess} jest za duża. Spróbuj jeszcze raz.`;
+    } else {
+      input.placeholder = document.title = `Bingo!`;
+      heading.textContent = `Zgadłeś za ${this.numGuesses} razem!`;
+      playagain.hidden = false;
+    }
+  }
+
+  // Metoda zmieniająca stan gry w zależności od liczby wpisanej
+  // przez użytkownika. Zwraca true, jeżeli stan został zmieniony,
+  // lub false w przeciwnym razie.
+  updateForGuess(guess) {
+    // Jeżeli jest to liczba z poprawnego przedziału...
+    if ((guess > this.low) && (guess < this.high)) {
+      // ...zmieniamy odpowiednio obiekt stanu.
+      if (guess < this.secret) this.low = guess;
+      else if (guess > this.secret) this.high = guess;
+      this.guess = guess;
+      this.numGuesses++;
+      return true;
+    }
+    else {     // Błędne dane. Wyświetlenie odpowiedniego komunikatu bez zmieniania stanu gry.
+      alert(`Wpisz liczbę większą niż ${this.low} i mniejszą niż ${this.high}`);
+      return false;
+    }
+  }
+}
+
+// Po zdefiniowaniu klasy prowadzenie gry jest kwestią zainicjowania, a
+// następnie modyfikowania, zapisywania i odtwarzania obiektu stanu
+// w odpowiednich momentach.
+
+// Po pierwszym uruchomieniu stan gry jest odtwarzany na podstawie
+// adresu URL. Jeżeli się to nie uda, rozpoczynana jest nowa gra.
+// Jeżeli użytkownik utworzy zakładkę, stan gry będzie można odtworzyć
+// na podstawie adresu URL. Jeżeli strona zostanie otwarta bez
+// parametrów w adresie, rozpocznie się nowa gra.
+let gamestate = GameState.fromURL(window.location) || GameState.newGame();
+
+// Zapisanie początkowego stanu gry w historii przeglądarki. W początkowej
+// fazie wykorzystywana jest metoda replaceState(), a nie pushState().
+history.replaceState(gamestate, "", gamestate.toURL());
+
+// Wyświetlenie początkowego stanu.
+gamestate.render();
+
+// Gdy użytkownik wpisze liczbę, stan jest odpowiednio zmieniany i zapisywany
+// w historii przeglądarki. Następnie wyświetlany jest nowy stan.
+document.querySelector("#input").onchange = (event) => {
+  if (gamestate.updateForGuess(parseInt(event.target.value))) {
+    history.pushState(gamestate, "", gamestate.toURL());
+  }
+  gamestate.render();
+};
+
+// Jeżeli użytkownik wybierze wpis w historii, przeglądarka zgłosi
+// zdarzenie "popstate" dla obiektu Window i w argumencie procedury
+// obsługi zdarzenia umieści obiekt zapisany wcześniej za pomocą
+// metody pushState(). Wtedy wyświetlany jest nowy stan gry.
+window.onpopstate = (event) => {
+  gamestate = GameState.fromStateObject(event.state);   // Odtworzenie stanu...
+  gamestate.render();                                   // ...i wyświetlenie go.
+};
+</script>
+</body></html>
